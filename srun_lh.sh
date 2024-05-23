@@ -18,8 +18,8 @@ source ${HOME}/sw/lighthouse/h100/venvs/warpx-h100/bin/activate
 
 # Executable and input file (or python and picmi script)
 EXE=python3
-INPUTS=../base/picmi_hall.py
-ARGS="--case 1 --numgpus 1 --resample 0 --resample_min 75 --resample_max 300 --seed 119899896"
+INPUTS=../warpx-hall/picmi_hall.py
+ARGS="--case 1 --numgpus 1 --resample 0 --resample_min 75 --resample_max 300"
 
 # CPU setup
 export SRUN_CPUS_PER_TASK=16

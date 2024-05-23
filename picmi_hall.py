@@ -34,9 +34,9 @@ if (args.numgpus is not None):
 if (args.resample is not None):
     resample = args.resample
 if (args.resample_min is not None):
-    resample_min = args.resample
+    resample_min = args.resample_min
 if (args.resample_max is not None):
-    resample_max = args.resample
+    resample_max = args.resample_max
 if (args.seed is not None):
     seed = args.seed
 
