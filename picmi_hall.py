@@ -17,6 +17,7 @@ parser.add_argument('--resample', type=bool)
 parser.add_argument('--resample_min', type=int)
 parser.add_argument('--resample_max', type=int)
 parser.add_argument('--seed', type=int)
+parser.add_argument('--sort-interval', type=int)
 
 # default arguments
 case = 1
@@ -24,6 +25,7 @@ numgpus = 1
 resample = False
 resample_min = 75
 resample_max = 300
+sort_interval=500
 seed = np.random.randint(1_000_000);
 
 args, leftovers = parser.parse_known_args()
@@ -39,6 +41,8 @@ if (args.resample_max is not None):
     resample_max = args.resample_max
 if (args.seed is not None):
     seed = args.seed
+if (args.sort_interval is not None):
+    sort_interval = args.sort_interval
 
 # Print parsed args
 print(f'Case: {case}')
@@ -180,7 +184,7 @@ sim = picmi.Simulation(
     max_time = max_time,
     verbose = verbose,
     warpx_random_seed = seed,
-    warpx_sort_intervals = 500,
+    warpx_sort_intervals = sort_interval,
     warpx_numprocs = numprocs,
     warpx_use_filter = True,
     warpx_amrex_use_gpu_aware_mpi = True,
