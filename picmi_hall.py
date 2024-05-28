@@ -17,7 +17,8 @@ parser.add_argument('--resample', type=bool)
 parser.add_argument('--resample_min', type=int)
 parser.add_argument('--resample_max', type=int)
 parser.add_argument('--seed', type=int)
-parser.add_argument('--sort-interval', type=int)
+parser.add_argument('--sort_interval', type=int)
+parser.add_argument('--mlmg_precision', type=float)
 
 # default arguments
 case = 1
@@ -25,7 +26,8 @@ numgpus = 1
 resample = False
 resample_min = 75
 resample_max = 300
-sort_interval=500
+sort_interval = 500
+mlmg_precision = 1e-5
 seed = np.random.randint(1_000_000);
 
 args, leftovers = parser.parse_known_args()
@@ -43,6 +45,8 @@ if (args.seed is not None):
     seed = args.seed
 if (args.sort_interval is not None):
     sort_interval = args.sort_interval
+if (args.mlmg_precision is not None):
+    mlmg_precision = args.mlmg_precision
 
 # Print parsed args
 print(f'Case: {case}')
@@ -173,7 +177,7 @@ grid = picmi.Cartesian2DGrid(
 # Field solver
 solver = picmi.ElectrostaticSolver(
     grid=grid,
-    required_precision=1e-5,
+    required_precision=mlmg_precision,
     warpx_self_fields_verbosity=1,
 )
 
