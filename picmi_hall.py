@@ -19,6 +19,7 @@ parser.add_argument('--resample_max', type=int)
 parser.add_argument('--seed', type=int)
 parser.add_argument('--sort_interval', type=int)
 parser.add_argument('--mlmg_precision', type=float)
+parser.add_argument('--collision_interval', type=int)
 
 # default arguments
 case = 1
@@ -28,6 +29,8 @@ resample_min = 75
 resample_max = 300
 sort_interval = 500
 mlmg_precision = 1e-5
+collision_interval = 0
+
 seed = np.random.randint(1_000_000);
 
 args, leftovers = parser.parse_known_args()
@@ -47,6 +50,8 @@ if (args.sort_interval is not None):
     sort_interval = args.sort_interval
 if (args.mlmg_precision is not None):
     mlmg_precision = args.mlmg_precision
+if (args.collision_interval is not None):
+    collision_interval = args.collision_interval
 
 # Print parsed args
 print(f'Case: {case}')
@@ -56,6 +61,9 @@ print(f'Resample: {resample}')
 if (resample):
     print(f'Resample min particles: {resample_min}')
     print(f'Resample max particles: {resample_max}')
+print(f'Sort interval: {sort_interval}')
+print(f'MLMG precision: {mlmg_precision}')
+print(f'Collision interval: {collision_interval}')
 
 # Cases
 Np_base = 75
@@ -174,35 +182,12 @@ grid = picmi.Cartesian2DGrid(
     warpx_potential_hi_x = 0.0,
 )
 
-# Field solver
-solver = picmi.ElectrostaticSolver(
-    grid=grid,
-    required_precision=mlmg_precision,
-    warpx_self_fields_verbosity=1,
-)
-
-# Initialize simulation
-sim = picmi.Simulation(
-    solver = solver,
-    time_step_size = dt,
-    max_time = max_time,
-    verbose = verbose,
-    warpx_random_seed = seed,
-    warpx_sort_intervals = sort_interval,
-    warpx_numprocs = numprocs,
-    warpx_use_filter = True,
-    warpx_amrex_use_gpu_aware_mpi = True,
-)
-
-solver.sim = sim
-
 # Applied fields
 external_field = picmi.AnalyticAppliedField(
     Bx_expression = "0.0",
     By_expression = B_func,
     Bz_expression = "0.0"
 )
-sim.add_applied_field(external_field)
 
 # Initial particle setup
 particle_layout = picmi.PseudoRandomLayout(n_macroparticles_per_cell = Np, grid = grid)
@@ -222,8 +207,6 @@ electrons = picmi.Species(
     warpx_resampling_min_ppc = resample_min,
 )
 
-sim.add_species(electrons, layout = particle_layout)
-
 ions = picmi.Species(
     particle_type = species, name = 'ions', mass = m_i, charge = 'q_e',
     initial_distribution = dist_i,
@@ -234,7 +217,39 @@ ions = picmi.Species(
     warpx_resampling_min_ppc = resample_min,
 )
 
+# Field solver
+solver = picmi.ElectrostaticSolver(
+    grid=grid,
+    required_precision=mlmg_precision,
+    warpx_self_fields_verbosity=1,
+)
+
+collision_ee = picmi.CoulombCollisions("ee", species = [electrons, electrons], ndt = collision_interval)
+collision_ei = picmi.CoulombCollisions("ei", species = [electrons, ions], ndt = collision_interval)
+collision_ii = picmi.CoulombCollisions("ii", species = [ions, ions], ndt = collision_interval)
+
+collisions = []
+if (collision_interval > 0):
+    collisions = [collision_ee, collision_ei, collision_ii]
+
+# Initialize simulation
+sim = picmi.Simulation(
+    solver = solver,
+    time_step_size = dt,
+    max_time = max_time,
+    verbose = verbose,
+    warpx_random_seed = seed,
+    warpx_sort_intervals = sort_interval,
+    warpx_numprocs = numprocs,
+    warpx_use_filter = True,
+    warpx_amrex_use_gpu_aware_mpi = True,
+    warpx_collisions = collisions,
+)
+
 sim.add_species(ions, layout = particle_layout)
+sim.add_species(electrons, layout = particle_layout)
+sim.add_applied_field(external_field)
+solver.sim = sim
 
 # Set up infrequent checkpoints
 checkpoint = picmi.Checkpoint(period = 100 * diag_inter_iter, warpx_file_prefix = "checkpoint", write_dir = "checkpoint", warpx_file_min_digits = 10)
