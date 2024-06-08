@@ -16,7 +16,7 @@ plt.rc('font', **font)
 
 # Directories
 import os
-ref_dir = "./reference"
+ref_dir = "../warpx-hall/reference"
 data_dir = "./diags"
 output_dir = "./output"
 fig_dpi = 200
@@ -328,7 +328,7 @@ for (i, ax) in enumerate(axes):
     center = ax_center(fig, ax)
     text_x = center[0] / figsize[0]
     text_y = 0.02
-    label = f"({chr(ord("a")+i)})"
+    label = f"({chr(ord('a')+i)})"
     fig.text(text_x, text_y, label, size = 20)
 
 # Adjust margins to avoid overlap
