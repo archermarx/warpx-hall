@@ -4,14 +4,34 @@ yt.funcs.mylog.setLevel(50)
 import numpy as np
 from numpy import inf
 
+# Matplotlib config
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
+plt.set_loglevel("error")
+font = {'family' : 'Helvetica',
+        'weight' : 'normal',
+        'size'   : 15}
+
+plt.rc('font', **font)
+
+# Directories
+import os
+ref_dir = "./reference"
+data_dir = "./diags"
+output_dir = "./output"
+fig_dpi = 200
+# create output directory
+os.makedirs(output_dir, exist_ok = True)
 
 # some physical constants
-c = 299_792_458
-q_e = 1.60217663e-19
-m_e = 9.1093837e-31
+import scipy.constants as constants
+c = constants.c
+q_e = constants.e
+m_e = constants.m_e
+eps_0 = constants.epsilon_0
+k_B = constants.Boltzmann
 
+# Benchmark definition
 class LandmarkBenchmark:
     def __init__(self, dt = 5e-12, x_max = 2.5e-2, unit = "m"):
         self.dt = dt
@@ -35,25 +55,28 @@ class LandmarkBenchmark:
     def grid(self, Nx):
         return np.linspace(0, self.x_max, Nx)
     
+
 def make_ref_polygon(field, ref_dir):
     """
     Takes two curves defined in csv files (`field`_lower_raw.csv) and (`field`_upper_raw.csv), and them together into a closed path.
     """
-    low_points = np.genfromtxt(ref_dir + field + '_lower_raw.csv', delimiter = ',')
-    hi_points = np.genfromtxt(ref_dir + field + '_upper_raw.csv', delimiter = ',')
+    low_points = np.genfromtxt(os.path.join(ref_dir, field + '_lower_raw.csv'), delimiter = ',')
+    hi_points = np.genfromtxt(os.path.join(ref_dir, field + '_upper_raw.csv'), delimiter = ',')
     return low_points, hi_points, np.vstack([low_points, np.flip(hi_points, axis = 0), low_points[0, :]])
 
-def benchmark_plot(yplots, xplots, benchmark = LandmarkBenchmark(), xscale = 1.0, yscale = 1.0):
+def benchmark_plot(yplots, xplots, benchmark = LandmarkBenchmark(), xscale = 1.0, yscale = 1.0, **kwargs):
     base_fig_width = 6.4 * xscale
     base_fig_height = 4.8 * yscale
-    fig, axes = plt.subplots(yplots, xplots, figsize = (xplots * base_fig_width, yplots * base_fig_height))
+    fig, axes = plt.subplots(yplots, xplots, figsize = (xplots * base_fig_width, yplots * base_fig_height), **kwargs)
     num_axes = yplots * xplots
+
+    lightgrey = "#dddddd"
     if (num_axes == 1):
         axes = [axes]
-    for ax in axes:
+    for (i, ax) in enumerate(axes):
         ax.set_xlim(0, benchmark.x_max)
         ax.set_xlabel(f"x [{benchmark.unit}]")
-        ax.axvspan(benchmark.x_inj_0, benchmark.x_inj_1, color = 'grey', alpha = 0.2, label = "Injection region")
+        ax.axvspan(benchmark.x_inj_0, benchmark.x_inj_1, color = lightgrey, label = "Injection region")
         ax.axvline([benchmark.x_emit], linestyle = '--', color = 'grey', linewidth = 1, label = "Cathode plane")
         ax.axvline([benchmark.x_bmax], linestyle = '-', color = 'grey', linewidth = 1, label = "Peak magnetic field")
         ax.axhline([0], linestyle = '-', color = 'grey')
@@ -105,15 +128,64 @@ class GriddedData:
 
         return T
 
+    def temp_and_heat_flux(self, species, dimension = 1, axis = 1):
+        ux  = self.load("ux_" + species, dimension, axis)
+        uy  = self.load("uy_" + species, dimension, axis)
+        uz  = self.load("uz_" + species, dimension, axis)
+        Pxx = self.load("P_xx_" + species, dimension, axis)
+        Pxy = self.load("P_xy_" + species, dimension, axis)
+        Pxz = self.load("P_xz_" + species, dimension, axis)
+        Pyy = self.load("P_yy_" + species, dimension, axis)
+        Pyz = self.load("P_yz_" + species, dimension, axis)
+        Pzz = self.load("P_zz_" + species, dimension, axis)
+        Qx = self.load("Q_x_" + species, dimension, axis)
+        Qy = self.load("Q_y_" + species, dimension, axis)
+        Qz = self.load("Q_z_" + species, dimension, axis)
+
+        # Energy normalization factor
+        E_factor = m_e * c**2 / q_e
+
+        # Velocity vector
+        u = np.array([ux, uy, uz])
+
+        # Velocity squared magnitude
+        u2 = np.einsum("ik,ik->k", u, u)
+
+        # Energy flux vector
+        Q = np.array([Qx, Qy, Qz])
+
+        # Stress tensor
+        P = np.array([
+            [Pxx, Pxy, Pxz],
+            [Pxy, Pyy, Pyz],
+            [Pxz, Pyz, Pzz]
+        ])
+
+        # Pressure tensor
+        # p = P - np.outer(u,u)
+        p = P - np.einsum("ik,jk->ijk", u, u)
+
+        # Temperature
+        T = np.trace(p, axis1=0, axis2=1) / 3
+
+        # Total energy
+        E_tot = 1.5 * T + 0.5 * u2
+
+        # Energy flux (E * u)
+        E_flux = E_tot * u
+
+        # Heat flux
+        # Q - pu - E_flux
+        q = Q - np.einsum("ijk,jk->ik", p, u) - E_tot * u
+        
+        return T * E_factor, q * c * E_factor
+
     def extent(self):
         dimensionality = self.dataset.dimensionality
         return [
             self.dataset.domain_left_edge[0], self.dataset.domain_right_edge[0],
             self.dataset.domain_left_edge[dimensionality-1], self.dataset.domain_right_edge[dimensionality-1]
         ]
-    
-
-import os
 
 def read_plotfile_header(dir):
     header_file = os.path.join(dir, "Header")
@@ -181,110 +253,93 @@ class DataSeries:
         return np.mean(self.load(field, dimension, axis), 0)
     
 
-case = 'diags'
-os.makedirs("output", exist_ok=True)
-
-ref_dir = "../warpx-hall/reference/"
-_, _, ni_poly = make_ref_polygon("ni", ref_dir)
-_, _, E_poly = make_ref_polygon("E", ref_dir)
-E_poly[:, 1] /= 1000
-Te_low, Te_hi, Te_poly = make_ref_polygon("Te", ref_dir)
-
-series = DataSeries(case, start_time = 1.6e-5)
+# Load data
+series = DataSeries(data_dir, start_time = 1.6e-5)
 print("Data series loaded")
+te_result = [ds.temp_and_heat_flux("electrons") for ds in series.data]
+Te = np.array([t[0] for t in te_result])
+Q = np.array([t[1] for t in te_result])
+print("Temperature and heat flux loaded")
+
 n_ions = series.load("rho_ions") / q_e
 print("Density loaded")
+
 E_x = series.load("Ex") / 1000
 print("Electric field loaded")
-Te = np.array([ds.compute_temp("electrons") for ds in series.data])
-print("Temperature loaded")
 
+# compute averaged properties
 ni_avg = np.mean(n_ions, 0)
 Ex_avg = np.mean(E_x, 0)
 Te_avg = np.mean(Te, 0)
+Qe_avg = np.mean(Q, 0)
+
+def ax_bbox(fig, ax):
+    return ax.get_tightbbox(fig.canvas.renderer).transformed(fig.dpi_scale_trans.inverted())
+
+def ax_center(fig, ax):
+    bbox = ax_bbox(fig, ax)
+    center = bbox.p0 + 0.5 * np.array(bbox.width, bbox.height)
+    return center
+
+def save_subfig(fig, ax, output_dir, filename):
+    fig.savefig(os.path.join(output_dir, filename + ".png"),  bbox_inches = ax_bbox(fig, ax))
+    fig.savefig(os.path.join(output_dir, filename + ".eps"),  bbox_inches = ax_bbox(fig, ax))
 
 benchmark = LandmarkBenchmark().scaled("cm")
 x = series.data[0].grid1D()
 xs = benchmark.grid(x.size)
 benchmark_color = "#ffb3b3"
 
-fig, axes = benchmark_plot(1, 3, benchmark, xscale = 0.8)
+_, _, ni_poly = make_ref_polygon("ni", ref_dir)
+_, _, E_poly = make_ref_polygon("E", ref_dir)
+E_poly[:, 1] /= 1000
+Te_low, Te_hi, Te_poly = make_ref_polygon("Te", ref_dir)
+lw = 2
+
+fig, axes = benchmark_plot(1, 3, benchmark, xscale = 0.63, yscale = 1.1, dpi = fig_dpi)
 axes[0].add_patch(Polygon(E_poly, color = benchmark_color, label = "Benchmark", zorder = 2))
-axes[0].plot(xs, Ex_avg, color = "black")
-axes[0].set_title("Electric field")
+axes[0].plot(xs, Ex_avg, color = "black", linewidth = lw)
 axes[0].set_ylabel("Electric field [kV/m]")
 axes[0].set_ylim(-5, 60)
 
 axes[1].add_patch(Polygon(ni_poly, color = benchmark_color, label = "Benchmark", zorder = 2))
-axes[1].plot(xs, ni_avg, color = "black")
-axes[1].set_title("Ion number density")
+axes[1].plot(xs, ni_avg, color = "black", linewidth = lw)
 axes[1].set_ylabel("Number density [m$^{-3}$]")
 
 axes[2].add_patch(Polygon(Te_poly, color = benchmark_color, label = "Benchmark", zorder = 2))
-axes[2].plot(xs, Te_avg, color = "black")
-axes[2].set_title("Electron temperature")
+axes[2].plot(xs, Te_avg, color = "black", label = "This work", linewidth = lw)
 axes[2].set_ylabel("Electron temperature [eV]")
-axes[2].legend()
 
-data_fields = (xs, ni_avg, Ex_avg, Te_avg)
-header="x[cm],n_i[m^-3],E_x[kV/m],T_e[eV]"
-np.savetxt("data_" + case + ".csv", data_fields, header = header, delimiter=',')
-
-fig.savefig("output/benchmark_results.png")
-
-ne_avg  = np.mean(series.load("rho_electrons") / q_e, 0)
-uix_avg = np.mean(series.load("ux_ions") * c, 0)
-uex_avg = np.mean(series.load("ux_electrons") * c, 0)
-uez_avg = np.mean(series.load("uz_electrons") * c, 0)
-
-j_i = q_e * ni_avg * uix_avg
-j_e = -q_e * ne_avg * uex_avg
-
-fig, ax = benchmark_plot(1,3, benchmark, xscale = 0.8)
-
-ax[0].plot(xs, uix_avg / 1000, label = "Ions")
-#ax[0].plot(xs, uex_avg / 1000, label = "Electrons")
-ax[0].set_ylim(-5, 20)
-ax[0].set_ylabel("Velocity [km/s]")
-ax[0].set_title("Axial velocity")
-
-ax[1].plot(xs, j_i / 1000, label = "Ion current")
-ax[1].plot(xs, j_e / 1000, label = "Electron current")
-ax[1].plot(xs, (j_e + j_i) / 1000, label = "Total current", color = 'red')
-ax[1].axhline([0.4], label = "Expected ion current", linestyle = '--', color = 'black')
-ax[1].set_ylabel("Current density [kA/m$^2$]")
-ax[1].set_title("Axial current density")
-ax[1].set_ylim(-1.5, 0.6)
-ax[1].legend()
-
-inv_hall = -uex_avg / uez_avg
-inv_hall_offset = -uex_avg / (uez_avg + 8e4)
-
-ax[2].set_ylim(1e-4, 1e2)
-ax[2].axhline([0.0625], linestyle = '-', color = 'black', label = "Bohm")
-ax[2].semilogy(xs, inv_hall, label = "PIC")
-ax[2].semilogy(xs, inv_hall_offset, label = "PIC (offset)")
-ax[2].set_title("Inverse Hall parameter")
-ax[2].legend()
-
+# Save individual subplots
 fig.tight_layout()
-fig.savefig("output/velocities.png")
+save_subfig(fig, axes[0], output_dir, "E")
+save_subfig(fig, axes[1], output_dir, "ni")
+save_subfig(fig, axes[2], output_dir, "Te")
 
-particlenumber_new = np.genfromtxt(case + "/reducedfiles/hall.txt")
+# Add legend and save main plot
+lines_labels = axes[2].get_legend_handles_labels()
+lines = [l[0] for l in  zip(*lines_labels)]
+labels = [l[1] for l in  zip(*lines_labels)]
+fig.legend(reversed(lines), reversed(labels), loc = "upper center", ncols = 5)
 
-seconds_to_us = 1e6
+# Add plot numbers
+for (i, ax) in enumerate(axes):
+    figsize = fig.get_size_inches()
+    center = ax_center(fig, ax)
+    text_x = center[0] / figsize[0]
+    text_y = 0.02
+    label = f"({chr(ord("a")+i)})"
+    fig.text(text_x, text_y, label, size = 20)
 
-time_new = particlenumber_new[:, 1] * seconds_to_us
-N_new = particlenumber_new[:, -3]
+# Adjust margins to avoid overlap
+fig.subplots_adjust(top = 0.85)
+fig.subplots_adjust(bottom = 0.2)
 
-fig, ax = plt.subplots(1,1)
+# Save combined figure
+fig.savefig(os.path.join(output_dir, "output.png"))
+fig.savefig(os.path.join(output_dir, "output.eps"))
 
-new_color = "#0000ee"
-
-ax.plot(time_new, N_new, color = new_color, label = "New")
-ax.set_xlim(np.min(time_new), np.max(time_new))
-ax.set_xlabel("Time [$\mu$s]")
-ax.set_ylabel("Physical particles in domain")
-ax.set_title("Particle count")
-ax.legend()
-fig.savefig("output/particle_count.png")
+# Save data to file
+data_fields = (xs, ni_avg, Ex_avg, Te_avg, Qe_avg[0, :])
+header="x[cm],n_i[m^-3],E_x[kV/m],T_e[eV],q_x[eVm^-2s^-1]"
+np.savetxt(os.path.join(output_dir, "extracted.csv"), data_fields, header = header, delimiter=',')
