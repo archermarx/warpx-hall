@@ -13,13 +13,15 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--case', type=int)
 parser.add_argument('-n', '--numgpus', type=int)
-parser.add_argument('--resample', type=bool)
+parser.add_argument('--resample', action = argparse.BooleanOptionalAction)
+parser.set_defaults(resample=False)
 parser.add_argument('--resample_min', type=int)
 parser.add_argument('--resample_max', type=int)
 parser.add_argument('--seed', type=int)
 parser.add_argument('--sort_interval', type=int)
 parser.add_argument('--mlmg_precision', type=float)
 parser.add_argument('--collision_interval', type=int)
+parser.add_argument('--diag_interval', type=int)
 
 # default arguments
 case = 1
@@ -30,6 +32,7 @@ resample_max = 300
 sort_interval = 500
 mlmg_precision = 1e-5
 collision_interval = 0
+diag_interval = 5000          # Interval between diagnostic outputs (iters)
 
 seed = np.random.randint(1_000_000);
 
@@ -39,6 +42,7 @@ if (args.case is not None):
 if (args.numgpus is not None):
     numgpus = args.numgpus
 if (args.resample is not None):
+    print("args.resample = ", args.resample)
     resample = args.resample
 if (args.resample_min is not None):
     resample_min = args.resample_min
@@ -52,6 +56,8 @@ if (args.mlmg_precision is not None):
     mlmg_precision = args.mlmg_precision
 if (args.collision_interval is not None):
     collision_interval = args.collision_interval
+if (args.diag_interval is not None):
+    diag_interval = args.diag_interval
 
 # Print parsed args
 print(f'Case: {case}')
@@ -64,6 +70,7 @@ if (resample):
 print(f'Sort interval: {sort_interval}')
 print(f'MLMG precision: {mlmg_precision}')
 print(f'Collision interval: {collision_interval}')
+print(f'Diag interval: {diag_interval}')
 
 # Cases
 Np_base = 75
@@ -118,7 +125,6 @@ verbose = True                  # Whether to use verbose output
 num_grids = 1                   # Number of subgrids to decompose domain into
 dt = 5e-12                      # Timestep size (seconds)
 max_time = 20e-6                # Max time (s)
-diag_inter_iter = 5000          # Interval between diagnostic outputs (iters)
 
 # Geometric factors
 # NOTE: in WarpX 2D simulations, the coordinate axes are x and z.
@@ -252,13 +258,13 @@ sim.add_applied_field(external_field)
 solver.sim = sim
 
 # Set up infrequent checkpoints
-checkpoint = picmi.Checkpoint(period = 100 * diag_inter_iter, warpx_file_prefix = "checkpoint", write_dir = "checkpoint", warpx_file_min_digits = 10)
+checkpoint = picmi.Checkpoint(period = 100 * diag_interval, warpx_file_prefix = "checkpoint", write_dir = "checkpoint", warpx_file_min_digits = 10)
 sim.add_diagnostic(checkpoint)
 
 # Particle saving options. Note that this is currently disabled (see commented-out line below) due to the amount of space required
 particle_diag = picmi.ParticleDiagnostic(
     name = diag_name + '_particles',
-    period = diag_inter_iter * 10,
+    period = diag_interval * 10,
     data_list = ['position', 'momentum', 'weighting'],
     write_dir = 'diags',
     warpx_format="plotfile",
@@ -271,7 +277,7 @@ particle_diag = picmi.ParticleDiagnostic(
 field_diag = picmi.FieldDiagnostic(
     name = diag_name,
     grid = grid,
-    period = diag_inter_iter,
+    period = diag_interval,
     data_list = ['rho', 'rho_ions', 'rho_electrons', 'E', 'B', 'J', 'phi'],
     write_dir = 'diags',
     warpx_format = "plotfile",
@@ -373,7 +379,7 @@ sim.add_diagnostic(field_diag)
 particle_number = picmi.ReducedDiagnostic(
     name = diag_name,
     diag_type = 'ParticleNumber',
-    period = diag_inter_iter,
+    period = diag_interval,
 )
 
 sim.add_diagnostic(particle_number)

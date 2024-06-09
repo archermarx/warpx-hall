@@ -24,7 +24,7 @@ source ${HOME}/sw/greatlakes/v100/venvs/warpx-v100/bin/activate
 # executable & inputs file or python interpreter & PICMI script here
 EXE=python3
 INPUTS=picmi_hall.py
-ARGS="--case 1 --numgpus 1 --resample 0 --resample_min 75 --resample_max 300 --seed 119899896"
+ARGS="--case 1 --numgpus 1 --no-resample --resample_min 75 --resample_max 300 --seed 119899896"
 
 # threads for OpenMP and threaded compressors per MPI rank
 #   per node are 2x 2.4 GHz Intel Xeon Gold 6148
