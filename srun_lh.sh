@@ -29,4 +29,4 @@ export OMP_NUM_THREADS=${SRUN_CPUS_PER_TASK}
 srun --cpu-bind=cores ${EXE} ${INPUTS} ${ARGS} > output.log
 
 # Run analysis
-srun python3 ../warpx-hall/analysis.y
+srun python3 ../warpx-hall/analysis.py
