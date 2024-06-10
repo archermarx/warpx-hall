@@ -22,6 +22,8 @@ parser.add_argument('--sort_interval', type=int)
 parser.add_argument('--mlmg_precision', type=float)
 parser.add_argument('--collision_interval', type=int)
 parser.add_argument('--diag_interval', type=int)
+parser.add_argument('--cathode', action = argparse.BooleanOptionalAction)
+parser.set_defaults(cathode=True)
 
 # default arguments
 case = 1
@@ -32,7 +34,8 @@ resample_max = 300
 sort_interval = 500
 mlmg_precision = 1e-5
 collision_interval = 0
-diag_interval = 5000          # Interval between diagnostic outputs (iters)
+diag_interval = 5000            # Interval between diagnostic outputs (iters)
+cathode=True                # Whether cathode particle injection BC is applied
 
 seed = np.random.randint(1_000_000);
 
@@ -58,6 +61,8 @@ if (args.collision_interval is not None):
     collision_interval = args.collision_interval
 if (args.diag_interval is not None):
     diag_interval = args.diag_interval
+if (args.cathode is not None):
+    cathode = args.cathode
 
 # Print parsed args
 print(f'Case: {case}')
@@ -71,6 +76,7 @@ print(f'Sort interval: {sort_interval}')
 print(f'MLMG precision: {mlmg_precision}')
 print(f'Collision interval: {collision_interval}')
 print(f'Diag interval: {diag_interval}')
+print(f'Cathode enabled: {cathode}')
 
 # Cases
 Np_base = 75
@@ -462,7 +468,8 @@ def inject_cathode():
             w = w
         )
 
-callbacks.installparticleinjection(inject_cathode)
+if cathode:
+    callbacks.installparticleinjection(inject_cathode)
 
 x_nodes = dx * cp.arange(Nx+1)
 
