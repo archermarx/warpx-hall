@@ -8,6 +8,7 @@
 #SBATCH --gpus-per-task=h100:1
 #SBATCH --gpu-bind=single:1
 #SBATCH --time=3-00:00:00
+#SBATCH --mem=32g
 #SBATCH -o output.log 
 #SBATCH -e error.log
 #SBATCH --mail-type=END,FAIL

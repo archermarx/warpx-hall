@@ -24,6 +24,7 @@ parser.add_argument('--collision_interval', type=int)
 parser.add_argument('--diag_interval', type=int)
 parser.add_argument('--cathode', action = argparse.BooleanOptionalAction)
 parser.set_defaults(cathode=True)
+parser.add_argument('--shape_factor', type=int)
 
 # default arguments
 case = 1
@@ -36,6 +37,7 @@ mlmg_precision = 1e-5
 collision_interval = 0
 diag_interval = 5000            # Interval between diagnostic outputs (iters)
 cathode=True                # Whether cathode particle injection BC is applied
+shape_factor = 1
 
 seed = np.random.randint(1_000_000);
 
@@ -63,6 +65,8 @@ if (args.diag_interval is not None):
     diag_interval = args.diag_interval
 if (args.cathode is not None):
     cathode = args.cathode
+if (args.shape_factor is not None):
+    shape_factor = args.shape_factor
 
 # Print parsed args
 print(f'Case: {case}')
@@ -77,6 +81,7 @@ print(f'MLMG precision: {mlmg_precision}')
 print(f'Collision interval: {collision_interval}')
 print(f'Diag interval: {diag_interval}')
 print(f'Cathode enabled: {cathode}')
+print(f'Particle shape factor: {shape_factor}')
 
 # Cases
 Np_base = 75
@@ -102,6 +107,18 @@ else:
 Np = Np_base * particle_factor
 Nx = Nx_base * grid_factor
 Nz = Nz_base * grid_factor
+
+# Set particle shape factor
+if shape_factor == 1:
+    particle_shape = 'linear'
+elif shape_factor == 2:
+    particle_shape = 'quadratic'
+elif shape_factor == 3:
+    particle_shape = 'cubic'
+else:
+    raise Exception(f"Invalid particle shape specified: {shape_factor}.")
+
+exit()
 
 print(f"Particles per cell, initial: {Np}")
 print(f"Axial cells: {Nx}")
@@ -256,6 +273,7 @@ sim = picmi.Simulation(
     warpx_use_filter = True,
     warpx_amrex_use_gpu_aware_mpi = True,
     warpx_collisions = collisions,
+    particle_shape = particle_shape
 )
 
 sim.add_species(ions, layout = particle_layout)
@@ -264,10 +282,16 @@ sim.add_applied_field(external_field)
 solver.sim = sim
 
 # Set up infrequent checkpoints
-checkpoint = picmi.Checkpoint(period = 100 * diag_interval, warpx_file_prefix = "checkpoint", write_dir = "checkpoint", warpx_file_min_digits = 10)
+checkpoint = picmi.Checkpoint(
+    period = int(max_steps / 10),
+    warpx_file_prefix = "checkpoint",
+    write_dir = "checkpoint",
+    warpx_file_min_digits = 10
+)
 sim.add_diagnostic(checkpoint)
 
-# Particle saving options. Note that this is currently disabled (see commented-out line below) due to the amount of space required
+# Particle saving options.
+# Note that this is currently disabled (see commented-out line below) due to the amount of space required
 particle_diag = picmi.ParticleDiagnostic(
     name = diag_name + '_particles',
     period = diag_interval * 10,
@@ -275,7 +299,7 @@ particle_diag = picmi.ParticleDiagnostic(
     write_dir = 'diags',
     warpx_format="plotfile",
 )
-#sim.add_diagnostic(particle_diag)
+# sim.add_diagnostic(particle_diag)
 
 # Grid diagnostics
 # In addition to normal grid quantities, we also save gridded moments of the electron VDF for later analysis
