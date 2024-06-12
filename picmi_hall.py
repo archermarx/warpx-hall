@@ -118,8 +118,6 @@ elif shape_factor == 3:
 else:
     raise Exception(f"Invalid particle shape specified: {shape_factor}.")
 
-exit()
-
 print(f"Particles per cell, initial: {Np}")
 print(f"Axial cells: {Nx}")
 print(f"Azimuthal cells: {Nz}")
