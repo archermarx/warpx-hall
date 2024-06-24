@@ -1,14 +1,8 @@
 #!/bin/bash -l
-
-# Copyright 2024 The WarpX Community
-#
-# Author: Axel Huebl
-# License: BSD-3-Clause-LBNL
-
 #SBATCH -t 3-00:00:00
 #SBATCH -N 1
 #SBATCH -J baseline
-#SBATCH -A goroda1
+#SBATCH -A (YOUR ACCOUNT HERE)
 #SBATCH --partition=gpu
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=20
