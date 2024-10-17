@@ -16,7 +16,7 @@ plt.rc('font', **font)
 
 # Directories
 import os
-ref_dir = "../warpx-hall/reference"
+ref_dir = "/home/marksta/src/warpx-hall/reference"
 data_dir = "./diags"
 output_dir = "./output"
 fig_dpi = 200
@@ -243,6 +243,12 @@ class DataSeries:
         self.time       = [data[i]["time"] for i in perm]
         self.data       = [data[i]["data"] for i in perm]
         self.num_iters = len(perm)
+        dt = np.zeros(self.num_iters);
+        dt[1:] = np.diff(self.time)
+        dt[0] = dt[1]
+        self.delta_time = dt
+        self.time_interval = time[-1] - time[0]
+
 
     def load(self, field, dimension = 1, axis = 1, jobs = 1):
         closure = load_field(field, dimension, axis)
@@ -250,11 +256,29 @@ class DataSeries:
         return np.array(values)
     
     def load_averaged(self, field, dimension = 1, axis = 1):
-        return np.mean(self.load(field, dimension, axis), 0)
+        return np.sum(self.delta_time * self.load(field, dimension, axis), 0) / self.time_interval
     
 
+# Plot particle counts
+particle_data = np.genfromtxt("diags/reducedfiles/hall.txt", skip_header = 1, delimiter = ' ')
+time = particle_data[:, 1] * 1e6
+num_cells = 512 * 256
+num_ion = particle_data[:, 3]
+num_ele = particle_data[:, 4]
+fig, ax = plt.subplots(1,1, dpi = fig_dpi)
+ax.set_xlabel("Time (us)")
+ax.set_ylabel("Particles/cell")
+ax.set_title("Macroparticles per cell")
+l_ion = plt.plot(time, num_ion / num_cells, label = 'Ions')
+l_ele = plt.plot(time, num_ele / num_cells, color = 'red', linestyle = '--', label = 'Electrons')
+l_tot = plt.plot(time, (num_ion + num_ele) / num_cells, color = 'black', label = 'Total')
+plt.legend(loc = "upper left")
+fig.tight_layout();
+fig.savefig(os.path.join(output_dir, "particle_number.png"))
+fig.savefig(os.path.join(output_dir, "particle_number.eps"))
+
 # Load data
-series = DataSeries(data_dir, start_time = 1.6e-5)
+series = DataSeries(data_dir, start_time = 1.2e-5)
 print("Data series loaded")
 te_result = [ds.temp_and_heat_flux("electrons") for ds in series.data]
 Te = np.array([t[0] for t in te_result])
@@ -286,6 +310,7 @@ def save_subfig(fig, ax, output_dir, filename):
     fig.savefig(os.path.join(output_dir, filename + ".eps"),  bbox_inches = ax_bbox(fig, ax))
 
 benchmark = LandmarkBenchmark().scaled("cm")
+print(f"Num checkpoints: {len(series.data)}")
 x = series.data[0].grid1D()
 xs = benchmark.grid(x.size)
 benchmark_color = "#ffb3b3"
@@ -343,3 +368,4 @@ fig.savefig(os.path.join(output_dir, "output.eps"))
 data_fields = (xs, ni_avg, Ex_avg, Te_avg, Qe_avg[0, :])
 header="x[cm],n_i[m^-3],E_x[kV/m],T_e[eV],q_x[eVm^-2s^-1]"
 np.savetxt(os.path.join(output_dir, "extracted.csv"), data_fields, header = header, delimiter=',')
+
