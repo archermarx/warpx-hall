@@ -1,9 +1,6 @@
 ####################################################################
 #                            IMPORTS                               #
 ####################################################################
-
-# c.f. https://sppl.stanford.edu/wp-content/uploads/2020/09/MicroHall.pdf
-
 import numpy as np
 from math import sqrt, ceil, floor
 import time
@@ -461,8 +458,6 @@ def inject_particles():
 
 # Install ionization callback
 callbacks.installparticleinjection(inject_particles)
-
-import cupy as cp
 
 particle_buffer = particle_containers.ParticleBoundaryBufferWrapper()
 

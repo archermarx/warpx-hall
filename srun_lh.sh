@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=case1
-#SBATCH --account=ramanvr
-#SBATCH --partition=ramanvr
+#SBATCH --account=(YOUR ACCOUNT HERE)
+#SBATCH --partition=(YOUR PARTITION_HERE)
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
