@@ -247,22 +247,48 @@ class DataSeries:
         dt[1:] = np.diff(self.time)
         dt[0] = dt[1]
         self.delta_time = dt
-        self.time_interval = time[-1] - time[0]
+        self.time_interval = self.time[-1] - self.time[0]
 
 
-    def load(self, field, dimension = 1, axis = 1, jobs = 1):
+    def load(self, field, dimension = 1, axis = 1, jobs = 1, inds = None):
         closure = load_field(field, dimension, axis)
-        values = [closure(ds) for ds in self.data]
-        return np.array(values)
+        if inds is None:
+            values = np.array([closure(ds) for ds in self.data])
+        else:
+            values = np.array([closure(self.data[i]) for i in inds])
+        return values
     
     def load_averaged(self, field, dimension = 1, axis = 1):
         return np.sum(self.delta_time * self.load(field, dimension, axis), 0) / self.time_interval
     
+# Load data
+series = DataSeries(data_dir, start_time = 1.2e-5)
+print("Data series loaded")
+
+# Load 2D ion density and azimuthal electric field at last timestep
+n_ions_2D = series.load("rho_ions", dimension = 2, inds = [-1])[0] / q_e
+E_2D = series.load("Ez", dimension = 2, inds = [-1])[0]
+nz, nx = n_ions_2D.shape
+print(f"2D series loaded, shape = ({nx}, {nz})")
+fig_x = 13
+fig_y = nz/nx * fig_x
+num_cells = nx * nz
+fig, ax = plt.subplots(1,1, figsize = (fig_x, fig_y), dpi = fig_dpi)
+ax.set_title("Azimuthal electric field")
+im = ax.imshow(E_2D)
+fig.colorbar(im, ax = ax)
+fig.savefig(os.path.join(output_dir, "E_2D.png"))
+
+fig, ax = plt.subplots(1,1, figsize = (fig_x, fig_y), dpi = fig_dpi)
+ax.set_title("Ion number density")
+im = ax.imshow(n_ions_2D)
+fig.colorbar(im, ax = ax)
+fig.savefig(os.path.join(output_dir, "n_2D.png"))
 
 # Plot particle counts
 particle_data = np.genfromtxt("diags/reducedfiles/hall.txt", skip_header = 1, delimiter = ' ')
 time = particle_data[:, 1] * 1e6
-num_cells = 512 * 256
+num_cells = nx * nz
 num_ion = particle_data[:, 3]
 num_ele = particle_data[:, 4]
 fig, ax = plt.subplots(1,1, dpi = fig_dpi)
@@ -277,9 +303,7 @@ fig.tight_layout();
 fig.savefig(os.path.join(output_dir, "particle_number.png"))
 fig.savefig(os.path.join(output_dir, "particle_number.eps"))
 
-# Load data
-series = DataSeries(data_dir, start_time = 1.2e-5)
-print("Data series loaded")
+
 te_result = [ds.temp_and_heat_flux("electrons") for ds in series.data]
 Te = np.array([t[0] for t in te_result])
 Q = np.array([t[1] for t in te_result])
@@ -325,7 +349,7 @@ fig, axes = benchmark_plot(1, 3, benchmark, xscale = 0.63, yscale = 1.1, dpi = f
 axes[0].add_patch(Polygon(E_poly, color = benchmark_color, label = "Benchmark", zorder = 2))
 axes[0].plot(xs, Ex_avg, color = "black", linewidth = lw)
 axes[0].set_ylabel("Electric field [kV/m]")
-axes[0].set_ylim(-5, 60)
+#axes[0].set_ylim(-5, 60)
 
 axes[1].add_patch(Polygon(ni_poly, color = benchmark_color, label = "Benchmark", zorder = 2))
 axes[1].plot(xs, ni_avg, color = "black", linewidth = lw)
