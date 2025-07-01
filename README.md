@@ -1,6 +1,6 @@
 # WarpX-Hall
 
-Code used to run Hall thruster simulations in WarpX
+Code used to run Hall thruster simulations in WarpX for the paper [GPU-acclerated kinetic Hall thruster simulations in WarpX](https://link.springer.com/article/10.1007/s44205-025-00133-1)
 
 ## Contents
 - `picmi_hall.py` - WarpX PICMI input file for Hall thruster simulations. Contains callbacks for particle injection and field adjustment.
