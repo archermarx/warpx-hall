@@ -1,2 +1,5 @@
 .nfs*
 *.png
+.ipynb_checkpoints
+__pycache__
+plots/
