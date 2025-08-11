@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=case1
-#SBATCH --account=(YOUR ACCOUNT HERE)
-#SBATCH --partition=(YOUR PARTITION_HERE)
+#SBATCH --account=ramanvr
+#SBATCH --partition=ramanvr
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
@@ -20,7 +20,7 @@ source ${HOME}/sw/lighthouse/h100/venvs/warpx-h100/bin/activate
 # Executable and input file (or python and picmi script)
 EXE=python3
 INPUTS=../warpx-hall/picmi_hall.py
-ARGS="--grid_factor 1 --initial_ppc 75 --numgpus 1 --no-resample --resample_min 75 --resample_max 300 --sort_interval 500 --mlmg_precision 1e-5 --collision_interval 10000"
+ARGS="--grid_factor 1 --initial_ppc 75 --numgpus 1 --no-resample --sort_interval 500 --mlmg_precision 1e-3 --collision_interval 10000"
 
 # CPU setup
 export SRUN_CPUS_PER_TASK=16
