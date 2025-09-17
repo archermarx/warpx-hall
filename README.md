@@ -19,10 +19,8 @@ The `iepc_2025` directory contains the code for the paper [_Toward kinetic axial
 ## Usage
 
 The newer version of the code is in the `iepc_2025` directory.
-At present, the code is split into a library, `hallx.py`, which is used by a script, `run.py`.
-The former contains all of the functionality for setting up benchmark simulations (and related), while the latter actually runs these simulations.
-On a cluster, you will need a job management system script (SLURM or similar) to invoke `run.py` with the required args.
-There are also some analysis functionalities.
-The `analysis.py` script computes certain time-averaged properties and generates 2D colorplots at a selection of times. See that script for details.
-The `generate_plots.ipynb` notebook contains the code used to perform the analysis and generate plots for the 2025 IEPC paper.
-The `analysis_utils.py` file contains some of the functionality needed in `analysis.py`.
+- At present, the code is split into a library, `hallx.py`, which is used by a script, `run.py`. The former contains all of the functionality for setting up benchmark simulations (and related), while the latter actually runs these simulations.
+- The `analysis.py` script computes certain time-averaged properties and generates 2D colorplots at a selection of times, the `generate_plots.ipynb` notebook contains the code used to perform the analysis and generate plots for the 2025 IEPC paper, and the `analysis_utils.py` file contains some of the functionality needed in both.
+
+On a cluster, we recommned using a job management system script (SLURM or similar) to invoke `run.py` with the required arguments.
+See the inline documentation in that file for a list of options.
