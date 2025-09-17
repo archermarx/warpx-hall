@@ -1,0 +1,13 @@
+[project]
+name = "iepc2025"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "build>=1.2.2.post1",
+    "numpy>=2.3.1",
+    "packaging>=25.0",
+    "setuptools[core]>=80.9.0",
+    "wheel>=0.45.1",
+]
